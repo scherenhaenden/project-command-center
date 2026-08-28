@@ -1,0 +1,812 @@
+<div class="shell" [class.dark]="dark()" [class.sidebar-collapsed]="sidebarCollapsed()">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">⌘</span
+      ><span class="brand-name">Command Center<br /><small>PERSONAL OS</small></span>
+    </div>
+    <button class="collapse" (click)="sidebarCollapsed.update((v) => !v)">
+      {{ sidebarCollapsed() ? '›' : '‹' }}</button
+    ><button class="capture" (click)="openQuickAdd()">＋ <b>Quick Capture</b></button>
+    <nav>
+      @for (i of navItems; track i.v) {
+        <button [class.active]="currentView() === i.v" (click)="setView(i.v)">
+          <span>{{ i.i }}</span
+          ><b>{{ i.v }}</b>
+        </button>
+      }
+    </nav>
+    <div class="areas">
+      <p>CONTEXTS</p>
+      @for (a of areas; track a) {
+        <button (click)="setArea(a)">
+          <span class="area-dot"></span><b>{{ a }}</b>
+        </button>
+      }
+    </div>
+    <div class="sidebar-bottom">
+      <button (click)="searchOpen.set(true)"><span>⌕</span><b>Search</b><kbd>⌘K</kbd></button
+      ><button (click)="toggleDark()">
+        <span>◐</span><b>{{ dark() ? 'Light' : 'Dark' }} mode</b>
+      </button>
+      <div class="profile"><span>DU</span><b>Demo User</b></div>
+    </div>
+  </aside>
+  <main>
+    <header class="topbar">
+      <div>
+        <span class="crumb">Command Center</span>
+        <h1>{{ selectedProject()?.name || currentView() }}</h1>
+      </div>
+      <div class="search-bar" (click)="searchOpen.set(true)">
+        ⌕ <span>Search portfolio, tasks, docs…</span><kbd>⌘K</kbd>
+      </div>
+      <div class="top-actions">
+        <button class="soft-btn" (click)="toggleCompact()">
+          {{ compact() ? 'Cards' : 'Compact' }}</button
+        ><button class="add-btn" (click)="openQuickAdd()">＋ <span>Quick Add</span></button>
+      </div>
+    </header>
+    @if (currentView() === 'Home') {
+      <section class="metric-strip">
+        <div>
+          <small>ACTIVE PROJECTS</small><strong>{{ activeProjects().length }}</strong>
+        </div>
+        <div>
+          <small>NEEDS ATTENTION</small><strong class="warn">{{ attention().length }}</strong>
+        </div>
+        <div>
+          <small>BLOCKED</small><strong class="critical">{{ blockedCount() }}</strong>
+        </div>
+        <div>
+          <small>UPCOMING DEADLINES</small><strong>{{ upcomingCount() }}</strong>
+        </div>
+        <div>
+          <small>CRITICAL TASKS</small
+          ><strong class="critical">{{ criticalTasks().length }}</strong>
+        </div>
+      </section>
+      <div class="home-layout">
+        <div>
+          <section class="section attention">
+            <div class="section-head">
+              <h2>⚠ Needs Attention</h2>
+              <button class="text-btn" (click)="setView('Portfolio')">View portfolio →</button>
+            </div>
+            <div class="attention-list">
+              @for (p of attention(); track p.id) {
+                <button class="attention-item" (click)="openProject(p.id)">
+                  <span class="status-dot" [class]="healthClass(p.health)"></span>
+                  <div>
+                    <b>{{ p.name }}</b>
+                    <p>
+                      {{
+                        p.health === 'Blocked'
+                          ? 'Dependency unresolved · open the project to unblock it'
+                          : p.targetDate + ' · ' + p.progress + '% complete'
+                      }}
+                    </p>
+                  </div>
+                  <span class="health-badge" [class]="healthClass(p.health)"
+                    ><i></i>{{ p.health }}</span
+                  >
+                </button>
+              }
+            </div>
+          </section>
+          <section class="section">
+            <div class="section-head"><h2>◉ Continue Working</h2></div>
+            @if (criticalTasks()[0]; as task) {
+              <article class="focus-card">
+                <small>{{ projectName(task.projectId) }} · DUE {{ task.dueDate }}</small>
+                <h3>{{ task.title }}</h3>
+                <div class="progress"><i [style.width]="task.progress + '%'"></i></div>
+                <button (click)="openTask(task.id)">Resume →</button>
+              </article>
+            } @else {
+              <p class="empty-copy">Everything has a path forward.</p>
+            }
+          </section>
+        </div>
+        <aside class="snapshot">
+          <div class="section-head">
+            <h2>▦ Portfolio Snapshot</h2>
+            <button class="text-btn" (click)="setView('Portfolio')">→</button>
+          </div>
+          @for (p of activeProjects().slice(0, 4); track p.id) {
+            <button class="snapshot-card" (click)="openProject(p.id)">
+              <div>
+                <b>{{ p.name }}</b
+                ><span class="status-dot" [class]="healthClass(p.health)"></span>
+              </div>
+              <div class="progress"><i [style.width]="progressWidth(p)"></i></div>
+              <small>NEXT ACTION</small>
+              <p>{{ p.nextAction }}</p>
+            </button>
+          }
+        </aside>
+      </div>
+    }
+    @if (currentView() === 'Today') {
+      <section class="today">
+        <p class="eyebrow">TODAY'S FOCUS</p>
+        <h2>Make today count.</h2>
+        <div class="today-grid">
+          <section>
+            <h3>Needs your attention</h3>
+            @for (p of attention(); track p.id) {
+              <button class="list-row" (click)="openProject(p.id)">
+                <span class="status-dot" [class]="healthClass(p.health)"></span><b>{{ p.name }}</b
+                ><span>{{ p.nextAction }}</span>
+              </button>
+            }
+          </section>
+          <section>
+            <h3>Critical tasks</h3>
+            @for (t of criticalTasks(); track t.id) {
+              <button class="task" [class.done]="t.status === 'Done'" (click)="toggleTask(t)">
+                <span>{{ t.status === 'Done' ? '✓' : '' }}</span>
+                <div>
+                  <b>{{ t.title }}</b>
+                  <p>{{ projectName(t.projectId) }} · {{ t.dueDate }}</p>
+                </div>
+                <em>{{ t.priority }}</em>
+              </button>
+            }
+          </section>
+          <section>
+            <h3>Upcoming deadlines</h3>
+            @for (x of weekItems().slice(0, 4); track x.title) {
+              <button class="list-row" (click)="openProject(x.projectId)">
+                <b>{{ x.date }}</b
+                ><span>{{ x.type }} · {{ x.title }}</span>
+              </button>
+            }
+          </section>
+        </div>
+      </section>
+    }
+    @if (currentView() === 'Portfolio' || (currentView() === 'Projects' && !selectedProject())) {
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ALL SYSTEMS</p>
+            <h2>Portfolio</h2>
+          </div>
+          <button class="add-btn" (click)="openQuickAdd('Project')">＋ Project</button>
+        </div>
+        <div class="filters">
+          <label
+            >Area
+            <select [ngModel]="areaFilter()" (ngModelChange)="areaFilter.set($event)">
+              <option>All</option>
+              @for (a of areas; track a) {
+                <option>{{ a }}</option>
+              }
+            </select></label
+          ><label
+            >Health
+            <select [ngModel]="healthFilter()" (ngModelChange)="healthFilter.set($event)">
+              <option>All</option>
+              @for (h of ['Healthy', 'Needs attention', 'At risk', 'Blocked', 'Paused']; track h) {
+                <option>{{ h }}</option>
+              }
+            </select></label
+          ><label
+            >Sort
+            <select [ngModel]="sortBy()" (ngModelChange)="sortBy.set($event)">
+              @for (s of ['Priority', 'Health', 'Deadline', 'Updated', 'Progress']; track s) {
+                <option>{{ s }}</option>
+              }
+            </select></label
+          >
+        </div>
+        <div class="project-grid" [class.compact]="compact()">
+          @for (p of filteredProjects(); track p.id) {
+            <article
+              class="project-card"
+              (click)="openProject(p.id)"
+              (keydown.enter)="openProject(p.id)"
+              tabindex="0"
+            >
+              <div class="card-title">
+                <div>
+                  <p>{{ p.area }}</p>
+                  <h3>{{ p.name }}</h3>
+                </div>
+                <span class="health-badge" [class]="healthClass(p.health)"
+                  ><i></i>{{ p.health }}</span
+                >
+              </div>
+              <div class="progress-row">
+                <strong>{{ p.progress }}%</strong
+                ><span
+                  >Exp. {{ p.expected }}%
+                  <em [class.negative]="variance(p) < 0"
+                    >{{ variance(p) > 0 ? '+' : '' }}{{ variance(p) }}%</em
+                  ></span
+                >
+              </div>
+              <div class="progress">
+                <i [style.width]="progressWidth(p)"></i><b [style.left]="p.expected + '%'"></b>
+              </div>
+              <div class="project-meta">
+                <div>
+                  <small>TARGET</small><b>{{ p.targetDate }}</b>
+                </div>
+                <div>
+                  <small>NEXT ACTION</small><b>{{ p.nextAction }}</b>
+                </div>
+              </div>
+              <footer>
+                <span>{{ p.priority }}</span
+                ><span>{{ p.updatedAt | date: 'shortDate' }}</span>
+              </footer>
+            </article>
+          } @empty {
+            <p class="empty-copy">No projects match these filters.</p>
+          }
+        </div>
+      </section>
+    }
+    @if (selectedProject(); as p) {
+      <section class="project-detail">
+        <div class="project-tabs">
+          @for (
+            tab of [
+              'Overview',
+              'Structure',
+              'Tasks',
+              'Milestones',
+              'Timeline',
+              'Dependencies',
+              'Risks',
+              'Activity',
+              'Decisions',
+              'Notes',
+            ];
+            track tab
+          ) {
+            <button [class.active]="detailTab() === tab" (click)="detailTab.set(tab)">
+              {{ tab }}
+            </button>
+          }
+          <button class="add-btn" (click)="openQuickAdd('Task', p.id)">＋ Add</button>
+        </div>
+        <div class="project-hero">
+          <p class="eyebrow">PROJECTS / {{ p.area }}</p>
+          <div class="hero-line">
+            <h2>{{ p.name }}</h2>
+            <span class="health-badge" [class]="healthClass(p.health)"><i></i>{{ p.health }}</span
+            ><span class="priority">{{ p.priority }}</span
+            ><button class="soft-btn" (click)="archiveProject(p)">
+              {{ p.archived ? 'Restore' : 'Archive' }}
+            </button>
+          </div>
+          <p>{{ p.summary }}</p>
+          <div class="detail-stats">
+            <div>
+              <small>PROGRESS</small><b>{{ p.progress }}%</b>
+            </div>
+            <div>
+              <small>TARGET</small><b>{{ p.targetDate }}</b>
+            </div>
+            <div>
+              <small>NEXT ACTION</small><b>{{ p.nextAction }}</b>
+            </div>
+          </div>
+        </div>
+        @if (detailTab() === 'Overview') {
+          <div class="detail-layout">
+            <div>
+              <article class="next-action">
+                <small>NEXT ACTION</small>
+                <h3>{{ p.nextAction }}</h3>
+                <button (click)="openQuickAdd('Task', p.id)">Add supporting task →</button>
+              </article>
+              <article class="subprojects">
+                <div class="section-head">
+                  <h3>Subprojects</h3>
+                  <button class="text-btn" (click)="detailTab.set('Structure')">
+                    View structure →
+                  </button>
+                </div>
+                @for (t of projectTasks().filter((x) => x.kind === 'subproject'); track t.id) {
+                  <div class="sub-row">
+                    <b>{{ t.title }}</b>
+                    <div class="mini-progress"><i [style.width]="t.progress + '%'"></i></div>
+                    <span>{{ t.progress }}%</span
+                    ><span
+                      class="health-badge"
+                      [class]="t.status === 'Blocked' ? 'blocked' : 'healthy'"
+                      ><i></i>{{ t.status }}</span
+                    >
+                  </div>
+                } @empty {
+                  <p class="empty-copy">No subprojects yet.</p>
+                }
+              </article>
+            </div>
+            <aside class="context-panel">
+              <p class="eyebrow">PROJECT CONTEXT</p>
+              <div>
+                <small>UPCOMING MILESTONE</small>
+                @if (projectMilestones()[0]; as m) {
+                  <b>{{ m.title }}</b>
+                  <p>{{ m.dueDate }}</p>
+                } @else {
+                  <p>No milestones yet.</p>
+                }
+              </div>
+              <div>
+                <small>BLOCKERS</small
+                ><b>{{
+                  projectTasks().filter((t) => t.status === 'Blocked').length
+                    ? 'Action required'
+                    : 'No active blockers'
+                }}</b>
+                <p>
+                  {{
+                    projectTasks().filter((t) => t.status === 'Blocked').length
+                      ? 'Open blocked task in Tasks tab.'
+                      : 'Everything has a path forward.'
+                  }}
+                </p>
+              </div>
+            </aside>
+          </div>
+        }
+        @if (detailTab() === 'Structure') {
+          <section class="content-card">
+            <div class="section-head">
+              <h3>Project structure</h3>
+              <button class="add-btn" (click)="openQuickAdd('Subproject', p.id)">
+                ＋ Subproject
+              </button>
+            </div>
+            @for (t of projectTasks(); track t.id) {
+              <button class="tree-row" (click)="openTask(t.id)">
+                <span>{{ t.kind === 'subproject' ? '⌄' : '└' }}</span
+                ><b>{{ t.title }}</b>
+                <div class="mini-progress"><i [style.width]="t.progress + '%'"></i></div>
+                <span>{{ t.progress }}%</span
+                ><span
+                  class="health-badge"
+                  [class]="
+                    t.status === 'Blocked'
+                      ? 'blocked'
+                      : t.status === 'Done'
+                        ? 'healthy'
+                        : 'needs-attention'
+                  "
+                  ><i></i>{{ t.status }}</span
+                >
+              </button>
+            }
+          </section>
+        }
+        @if (detailTab() === 'Tasks') {
+          <section class="content-card">
+            <div class="section-head">
+              <h3>Tasks</h3>
+              <div>
+                <button class="soft-btn" (click)="taskBoard.update((v) => !v)">
+                  {{ taskBoard() ? 'List' : 'Board' }}</button
+                ><button class="add-btn" (click)="openQuickAdd('Task', p.id)">＋ Task</button>
+              </div>
+            </div>
+            @if (!taskBoard()) {
+              @for (t of projectTasks().filter((x) => x.kind === 'task'); track t.id) {
+                <button
+                  class="task task-row"
+                  [class.done]="t.status === 'Done'"
+                  (click)="openTask(t.id)"
+                >
+                  <span>{{ t.status === 'Done' ? '✓' : '' }}</span>
+                  <div>
+                    <b>{{ t.title }}</b>
+                    <p>{{ t.status }} · {{ t.dueDate || 'No deadline' }}</p>
+                  </div>
+                  <em>{{ t.priority }}</em>
+                </button>
+              }
+            } @else {
+              <div class="board">
+                @for (
+                  s of [
+                    'Backlog',
+                    'Planned',
+                    'In progress',
+                    'Waiting',
+                    'Blocked',
+                    'Review',
+                    'Done',
+                  ];
+                  track s
+                ) {
+                  <section>
+                    <h4>{{ s }}</h4>
+                    @for (t of projectTasks().filter((x) => x.status === s); track t.id) {
+                      <button (click)="openTask(t.id)">
+                        {{ t.title }}<small>{{ t.priority }}</small>
+                      </button>
+                    }
+                  </section>
+                }
+              </div>
+            }
+          </section>
+        }
+        @if (detailTab() === 'Milestones') {
+          <section class="content-card">
+            <div class="section-head">
+              <h3>Milestones</h3>
+              <button class="add-btn" (click)="openQuickAdd('Milestone', p.id)">
+                ＋ Milestone
+              </button>
+            </div>
+            <div class="milestone-grid">
+              @for (m of projectMilestones(); track m.id) {
+                <article>
+                  <span class="health-badge" [class]="healthClass(m.status)"
+                    ><i></i>{{ m.status }}</span
+                  >
+                  <h3>{{ m.title }}</h3>
+                  <b>{{ m.dueDate }}</b>
+                  <div class="progress"><i [style.width]="m.progress + '%'"></i></div>
+                  <p>{{ m.requirements }} requirements remaining</p>
+                  <p>{{ m.blocker ? 'Blocked by: ' + m.blocker : 'No blocker' }}</p>
+                  <button
+                    (click)="
+                      setMilestoneStatus(m, m.status === 'Completed' ? 'Healthy' : 'Completed')
+                    "
+                  >
+                    {{ m.status === 'Completed' ? 'Reopen' : 'Complete' }}
+                  </button>
+                </article>
+              }
+            </div>
+          </section>
+        }
+        @if (detailTab() === 'Timeline') {
+          <section class="content-card">
+            <h3>Timeline</h3>
+            <div class="timeline">
+              @for (x of projectWeekItems(); track x.title) {
+                <button (click)="openProject(x.projectId)">
+                  <b>{{ x.date }}</b
+                  ><span>{{ x.type }}</span
+                  ><strong>{{ x.title }}</strong>
+                </button>
+              }
+            </div>
+          </section>
+        }
+        @if (detailTab() === 'Dependencies') {
+          <section class="content-card">
+            <div class="section-head">
+              <h3>Dependencies</h3>
+              <button class="add-btn" (click)="addDependency()">＋ Link first two tasks</button>
+            </div>
+            <div class="dependency-flow">
+              @for (d of dependenciesForProject(); track d.id) {
+                <span>{{ tasks().find((t) => t.id === d.fromId)?.title }}</span
+                ><b>→</b><span>{{ tasks().find((t) => t.id === d.toId)?.title }}</span>
+              } @empty {
+                <p class="empty-copy">No dependencies yet. Add tasks, then create a link.</p>
+              }
+            </div>
+          </section>
+        }
+        @if (detailTab() === 'Risks') {
+          <section class="content-card">
+            <div class="section-head">
+              <h3>Risks</h3>
+              <button class="add-btn" (click)="openQuickAdd('Risk', p.id)">＋ Risk</button>
+            </div>
+            @for (r of projectRisks(); track r.id) {
+              <article class="risk-card">
+                <div>
+                  <span class="health-badge at-risk"><i></i>{{ r.status }}</span>
+                  <h3>{{ r.title }}</h3>
+                  <p>
+                    Probability {{ r.probability }} · Impact {{ r.impact }} · Score
+                    {{ riskScore(r) }}
+                  </p>
+                  <p>Mitigation: {{ r.mitigation }}</p>
+                </div>
+                <button (click)="mitigateRisk(r)">Mitigate</button>
+              </article>
+            } @empty {
+              <p class="empty-copy">No risks recorded.</p>
+            }
+          </section>
+        }
+        @if (detailTab() === 'Activity') {
+          <section class="content-card">
+            <h3>Activity</h3>
+            @for (a of projectActivities(); track a.id) {
+              <div class="activity">
+                <b>{{ a.updatedAt | date: 'short' }}</b
+                ><span>{{ a.message }}</span>
+              </div>
+            } @empty {
+              <p class="empty-copy">No activity yet.</p>
+            }
+          </section>
+        }
+        @if (detailTab() === 'Decisions') {
+          <section class="content-card">
+            <div class="section-head">
+              <h3>Decision log</h3>
+              <button class="add-btn" (click)="openQuickAdd('Decision', p.id)">＋ Decision</button>
+            </div>
+            @for (d of projectDecisions(); track d.id) {
+              <article class="decision">
+                <h3>{{ d.title }}</h3>
+                <p>Context: {{ d.context }}</p>
+                <p>Reason: {{ d.reason }}</p>
+                <p>Alternatives: {{ d.alternatives }}</p>
+              </article>
+            } @empty {
+              <p class="empty-copy">No decisions logged.</p>
+            }
+          </section>
+        }
+        @if (detailTab() === 'Notes') {
+          <section class="content-card">
+            <div class="section-head">
+              <h3>Notes</h3>
+              <button class="add-btn" (click)="openQuickAdd('Note', p.id)">＋ Note</button>
+            </div>
+            @for (n of projectNotes(); track n.id) {
+              <article class="decision">
+                <p>{{ n.content }}</p>
+                <small>{{ n.updatedAt | date: 'short' }}</small>
+              </article>
+            } @empty {
+              <p class="empty-copy">No notes yet.</p>
+            }
+          </section>
+        }
+      </section>
+    }
+    @if (currentView() === 'Tasks') {
+      <section class="section">
+        <div class="section-head">
+          <h2>All tasks</h2>
+          <button class="add-btn" (click)="openQuickAdd('Task')">＋ Task</button>
+        </div>
+        <div class="board">
+          @for (
+            s of ['Backlog', 'Planned', 'In progress', 'Waiting', 'Blocked', 'Review', 'Done'];
+            track s
+          ) {
+            <section>
+              <h4>{{ s }}</h4>
+              @for (t of tasks().filter((x) => x.status === s); track t.id) {
+                <button (click)="openTask(t.id)">
+                  <b>{{ t.title }}</b
+                  ><small>{{ projectName(t.projectId) }} · {{ t.priority }}</small>
+                </button>
+              }
+            </section>
+          }
+        </div>
+      </section>
+    }
+    @if (currentView() === 'Milestones') {
+      <section class="section">
+        <div class="section-head">
+          <h2>Milestones</h2>
+          <button class="add-btn" (click)="openQuickAdd('Milestone')">＋ Milestone</button>
+        </div>
+        <div class="milestone-grid">
+          @for (m of milestones(); track m.id) {
+            <article (click)="openProject(m.projectId, 'Milestones')">
+              <h3>{{ m.title }}</h3>
+              <p>{{ projectName(m.projectId) }} · {{ m.dueDate }}</p>
+              <div class="progress"><i [style.width]="m.progress + '%'"></i></div>
+            </article>
+          }
+        </div>
+      </section>
+    }
+    @if (currentView() === 'Timeline') {
+      <section class="section">
+        <h2>This Week</h2>
+        <div class="timeline">
+          @for (x of weekItems(); track x.title) {
+            <button (click)="openProject(x.projectId)">
+              <b>{{ x.date }}</b
+              ><span>{{ x.type }}</span
+              ><strong>{{ x.title }}</strong
+              ><small>{{ projectName(x.projectId) }}</small>
+            </button>
+          }
+        </div>
+      </section>
+    }
+    @if (currentView() === 'Risks') {
+      <section class="section">
+        <div class="section-head">
+          <h2>Risk dashboard</h2>
+          <button class="add-btn" (click)="openQuickAdd('Risk')">＋ Risk</button>
+        </div>
+        <div class="risk-grid">
+          @for (r of risks(); track r.id) {
+            <article class="risk-card" (click)="openProject(r.projectId, 'Risks')">
+              <span class="health-badge at-risk"><i></i>{{ r.status }}</span>
+              <h3>{{ r.title }}</h3>
+              <p>{{ projectName(r.projectId) }}</p>
+              <p>
+                Probability {{ r.probability }} · Impact {{ r.impact }} · Score {{ riskScore(r) }}
+              </p>
+              <p>Mitigation: {{ r.mitigation }}</p>
+            </article>
+          } @empty {
+            <p class="empty-copy">No open risks.</p>
+          }
+        </div>
+      </section>
+    }
+    @if (currentView() === 'Archive') {
+      <section class="section">
+        <h2>Archive</h2>
+        <div class="project-grid">
+          @for (p of archivedProjects(); track p.id) {
+            <article class="project-card">
+              <h3>{{ p.name }}</h3>
+              <p>{{ p.summary }}</p>
+              <button class="add-btn" (click)="archiveProject(p)">Restore</button>
+            </article>
+          } @empty {
+            <p class="empty-copy">No archived projects.</p>
+          }
+        </div>
+      </section>
+    }
+  </main>
+  @if (quickAddOpen()) {
+    <div class="overlay" (click)="closeOverlays()">
+      <section class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">QUICK CAPTURE</p>
+            <h2>Create an item</h2>
+          </div>
+          <button class="icon-btn" (click)="closeOverlays()">×</button>
+        </div>
+        <label
+          >Type<select [ngModel]="draftType()" (ngModelChange)="draftType.set($event)">
+            @for (
+              t of ['Project', 'Subproject', 'Task', 'Milestone', 'Risk', 'Note', 'Decision'];
+              track t
+            ) {
+              <option>{{ t }}</option>
+            }
+          </select></label
+        >
+        @if (draftType() !== 'Project') {
+          <label
+            >Project<select [(ngModel)]="draftProjectId">
+              @for (p of activeProjects(); track p.id) {
+                <option [value]="p.id">{{ p.name }}</option>
+              }
+            </select></label
+          >
+        }
+        <label
+          >Title<input
+            [(ngModel)]="draftTitle"
+            placeholder="What needs to happen?"
+            autofocus /></label
+        ><label
+          >Priority<select [(ngModel)]="draftPriority">
+            @for (p of ['Low', 'Medium', 'High', 'Critical']; track p) {
+              <option>{{ p }}</option>
+            }
+          </select></label
+        ><label>Deadline<input type="date" [(ngModel)]="draftDueDate" /></label
+        ><label
+          >{{ draftType() === 'Project' ? 'Area' : 'Details'
+          }}<textarea [(ngModel)]="draftText" placeholder="Optional context"></textarea>
+        </label>
+        @if (formError()) {
+          <p class="form-error">{{ formError() }}</p>
+        }
+        <button class="add-btn wide" (click)="saveQuickAdd()">Create {{ draftType() }}</button>
+      </section>
+    </div>
+  }
+  @if (searchOpen()) {
+    <div class="overlay" (click)="closeOverlays()">
+      <section
+        class="modal command"
+        role="dialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <input
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          placeholder="Search projects, tasks, milestones, notes…"
+          autofocus
+        />
+        @if (searchQuery()) {
+          @for (group of searchResults(); track group.group) {
+            <p class="eyebrow">{{ group.group }}</p>
+            @for (item of group.items; track item.id) {
+              <button
+                (click)="openProject(item.projectId, item.kind === 'task' ? 'Tasks' : 'Overview')"
+              >
+                <span>◈</span><b>{{ item.label }}</b
+                ><kbd>↵</kbd>
+              </button>
+            }
+          }
+        } @else {
+          <p class="empty-copy">Type to search every project record.</p>
+        }
+      </section>
+    </div>
+  }
+  @if (drawerOpen() && editingTask(); as t) {
+    <div class="drawer" role="dialog">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">TASK DETAILS</p>
+          <h2>{{ t.title }}</h2>
+        </div>
+        <button class="icon-btn" (click)="drawerOpen.set(false)">×</button>
+      </div>
+      <p>{{ projectName(t.projectId) }}</p>
+      <label
+        >Title<input
+          [ngModel]="t.title"
+          (ngModelChange)="updateTask(t.id, { title: $event })" /></label
+      ><label
+        >Deadline<input
+          type="date"
+          [ngModel]="t.dueDate"
+          (ngModelChange)="updateTask(t.id, { dueDate: $event })" /></label
+      ><label
+        >Description<textarea
+          [ngModel]="t.description"
+          (ngModelChange)="updateTask(t.id, { description: $event })"
+        ></textarea></label
+      ><label
+        >Status<select
+          [ngModel]="t.status"
+          (ngModelChange)="
+            updateTask(t.id, { status: $event, progress: $event === 'Done' ? 100 : t.progress })
+          "
+        >
+          @for (
+            s of ['Backlog', 'Planned', 'In progress', 'Waiting', 'Blocked', 'Review', 'Done'];
+            track s
+          ) {
+            <option>{{ s }}</option>
+          }
+        </select></label
+      ><label
+        >Progress
+        <input
+          type="number"
+          min="0"
+          max="100"
+          [ngModel]="t.progress"
+          (ngModelChange)="updateTask(t.id, { progress: +$event })" /></label
+      ><label
+        >Priority
+        <select [ngModel]="t.priority" (ngModelChange)="updateTask(t.id, { priority: $event })">
+          <option>Low</option>
+          <option>Medium</option>
+          <option>High</option>
+          <option>Critical</option>
+        </select></label
+      ><button class="add-btn wide" (click)="toggleTask(t)">
+        {{ t.status === 'Done' ? 'Reopen' : 'Mark done' }}</button
+      ><button class="delete-btn" (click)="deleteTask(t.id)">Delete task</button>
+    </div>
+  }
+</div>
